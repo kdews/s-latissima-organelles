@@ -107,7 +107,8 @@ fi
 pipeline_log=queen.log
 # User defined
 genome=s_latissima_chloro_NCBI_2020.fasta
-path_to_raw_reads=/project/noujdine_61/kdeweese/latissima/all_wgs_OG_names
+#path_to_raw_reads=/project/noujdine_61/kdeweese/latissima/all_wgs_OG_names
+path_to_raw_reads=/project/noujdine_61/kdeweese/latissima/wgs_test
 partition=cegs
 scripts_dir=s-latissima-organelles # optional, directory containing scripts
 #scripts_dir=$4
@@ -195,9 +196,9 @@ no_depend () {
 		# Create log directory named after prefix
 		local logdir=`make_logdir $prefix`
 		# Job submission
-#		local jobid=`sbatch -p $partition -J ${prefix} --parsable \
-#--array=${array_size} -o ${logdir}/%x_%a.out $sbatch_file $prefix \
-#$trailing_args`
+		local jobid=`sbatch -p $partition -J ${prefix} --parsable \
+--array=${array_size} -o ${logdir}/%x_%a.out $sbatch_file $prefix \
+$trailing_args`
 		echo "sbatch -p $partition -J ${prefix} --parsable \
 --array=${array_size} -o ${logdir}/%x_%a.out $sbatch_file $prefix \
 $trailing_args" >> $pipeline_log
@@ -209,8 +210,8 @@ $trailing_args" >> $pipeline_log
 		# Create log directory named after prefix
 		local logdir=`make_logdir $prefix`
 		# Job submission
-#		local jobid=`sbatch -p $partition -J ${prefix} --parsable -o \
-# ${logdir}/%x.out $sbatch_file $prefix $trailing_args`
+		local jobid=`sbatch -p $partition -J ${prefix} --parsable -o \
+${logdir}/%x.out $sbatch_file $prefix $trailing_args`
 		echo "sbatch -p $partition -J ${prefix} \
 --parsable -o ${logdir}/%x.out $sbatch_file $prefix $trailing_args" \
 >> $pipeline_log
@@ -236,9 +237,9 @@ depend () {
 		# Create log directory named after prefix
 		local logdir=`make_logdir $prefix`
 		# Job submission
-#		local jobid=`sbatch -p $partition -J ${prefix} --parsable \
-#--array=${array_size} -o ${logdir}/%x_%a.out --dependency=afterok:${dep_jobid} \
-#$sbatch_file $prefix $trailing_args`
+		local jobid=`sbatch -p $partition -J ${prefix} --parsable \
+--array=${array_size} -o ${logdir}/%x_%a.out --dependency=afterok:${dep_jobid} \
+$sbatch_file $prefix $trailing_args`
 		echo "sbatch -p $partition -J ${prefix} --parsable \
 --array=${array_size} -o ${logdir}/%x_%a.out --dependency=afterok:${dep_jobid} \
 $sbatch_file $prefix $trailing_args" >> $pipeline_log
@@ -251,9 +252,9 @@ $sbatch_file $prefix $trailing_args" >> $pipeline_log
 		# Create log directory named after prefix
 		local logdir=`make_logdir $prefix`
 		# Job submission
-#		local jobid=`sbatch -p $partition -J ${prefix} --parsable -o \
-#${logdir}/%x.out --dependency=afterok:${dep_jobid} $sbatch_file $prefix \
-#$trailing_args`
+		local jobid=`sbatch -p $partition -J ${prefix} --parsable -o \
+${logdir}/%x.out --dependency=afterok:${dep_jobid} $sbatch_file $prefix \
+$trailing_args`
 		echo "sbatch -p $partition -J ${prefix} --parsable -o \
 ${logdir}/%x.out --dependency=afterok:${dep_jobid} $sbatch_file $prefix \
 $trailing_args" >> $pipeline_log
@@ -419,551 +420,551 @@ fi
 dependency_size=1
 printspace
 
-# Repair FASTQs with BBMap repair.sh
-# Depend start upon last job step
-dependency=$jobid
-dependency_prefix=$input_prefix
-input_sbatch=${scripts_dir}repair.sbatch
-input_prefix=`get_prefix $input_sbatch`
-jobid=`pipeliner --array $array_size \
-$dependency_prefix $dependency_size \
-$sleep_time $input_sbatch $input_prefix \
-$samples_dir $samples_dir \
-$samples_file`
-# Set dependency size for next step
-dependency_size=$array_size
-printspace
-
-# Remove original renamed reads to conserve memory before next steps
-# Depend start upon last job step
-dependency_prefix=$input_prefix
-input_prefix=og_reads_deleted
-if [[ `checkpoints_exist $dependency_prefix` = "true" ]] && \
-[[ `ls checkpoints/${dependency_prefix}*.checkpoint | wc -l` -eq \
-$dependency_size ]]
-then
-	if [[ `checkpoints_exist $input_prefix` = "true" ]]
-	then
-		{ date; echo "Original reads already removed. Skipping."; } >> \
-$pipeline_log
-	else	
-		{ date; echo "Removing original renamed reads \
-to conserve memory before next steps."; } >> $pipeline_log
-		for sample_id in `cat $samples_file`
-		do
-			if \
-[[ -f ${samples_dir}/${sample_id}_R1.fastq.gz ]] && \
-[[ -f ${samples_dir}/${sample_id}_R2.fastq.gz ]] && \
-[[ -f ${trimmed_dir}/${sample_id}_R1.repaired.fastq.gz ]] && \
-[[ -f ${trimmed_dir}/${sample_id}_R2.repaired.fastq.gz ]]
-			then
-				rm ${samples_dir}/${sample_id}_R1.fastq.gz
-				rm ${samples_dir}/${sample_id}_R2.fastq.gz
-			else
-				{ date; echo "Error - some reads missing for \
-${sample_id}, and no checkpoint file detected for $input_prefix step."; } >> \
-$pipeline_log
-				exit 1
-			fi
-		done
-		touch checkpoints/${input_prefix}.checkpoint
-	fi
-fi
-printspace
-
-# FastQC
-# Keep previous dependency
-dependency=$jobid
-dependency_prefix=$dependency_prefix
-input_sbatch=${scripts_dir}fastqc.sbatch
-input_prefix=`get_prefix $input_sbatch`
-# Check for dependency jobid
-if [[ $dependency ]]
-then
-	{ date; echo "Running $input_prefix following completion of \
-$dependency_prefix step (jobid ${dependency})."; } >> $pipeline_log
-	jobid=`depend --array $array_size \
-$input_sbatch $input_prefix $dependency \
-$samples_dir $qc_dir \
-$samples_file`
-else
-	# If dependency is finished running, verify its checkpoint
-	jobid=`pipeliner --array $array_size \
-$dependency_prefix $dependency_size \
-$sleep_time $input_sbatch $input_prefix \
-$samples_dir $qc_dir \
-$samples_file`
-fi
-# Set dependency size for next step
-dependency_size=$array_size
-printspace
-
-# Quality and adapter trimming
-# Depend start upon last job step
-dependency_prefix=$input_prefix
-input_sbatch=${scripts_dir}trim_galore.sbatch
-input_prefix=`get_prefix $input_sbatch`
-jobid=`pipeliner --array $array_size \
-$dependency_prefix $dependency_size \
-$sleep_time $input_sbatch $input_prefix \
-$samples_dir $qc_dir \
-$samples_file $trimmed_dir`
-# Set dependency size for next step
-dependency_size=$array_size
-printspace
-
-# Run HISAT2-build on genome
-# Depend start upon last job step
-dependency_prefix=$input_prefix
-input_sbatch=${scripts_dir}build_hisat2.sbatch
-input_prefix=`get_prefix $input_sbatch`
-jobid=`pipeliner \
-$dependency_prefix $dependency_size \
-$sleep_time $input_sbatch $input_prefix \
-$bams_dir $bams_dir \
-$genome`
-dependency_size=1
-printspace
-
-# Redefine $genome location after HISAT2-build step
-if [[ -f ${bams_dir}/${genome_basename_unzip} ]]
-then
-	genome=${bams_dir}/${genome_basename_unzip}
-	{ date; echo "Genome now being sourced from: $genome"; } >> \
-$pipeline_log
-else
-	{ date; echo "Error - gunzipped genome not detected in ${bams_dir}."; \
-} >> $pipeline_log
-	exit 1
-fi
-printspace
-
-# Run HISAT2 on all samples
-# Depend start upon last job step
-dependency=$jobid
-dependency_prefix=$input_prefix
-input_sbatch=${scripts_dir}hisat2.sbatch
-input_prefix=`get_prefix $input_sbatch`
-jobid=`pipeliner --array $array_size \
-$dependency_prefix $dependency_size \
-$sleep_time $input_sbatch $input_prefix \
-$trimmed_dir $bams_dir \
-$genome $samples_file $qc_dir $indiv_file`
-dependency_size=$array_size
-# Set dependency size for next step
-dependency_size=$array_size
-printspace
-
-# Sort IDs in $indiv_file for unique invidual IDs
-dependency_prefix=$input_prefix
-until [[ -f $indiv_file ]] && \
-[[ `checkpoints_exist $dependency_prefix` = "true" ]] && [[ `ls \
-checkpoints/${dependency_prefix}*.checkpoint | wc -l` -eq $dependency_size ]]
-do
-	{ date; echo "Waiting for completion of \
-$dependency_prefix step."; } >> $pipeline_log
-	sleep $sleep_time
-done
-if [[ -f $indiv_file ]]
-then
-	{ date; echo "Sorting $indiv_file for unique invidual IDs."; } >> \
-$pipeline_log
-	sort -u $indiv_file > ${indiv_file}_sorted
-	mv ${indiv_file}_sorted $indiv_file
-else
-	{ date; echo "Error - $indiv_file not detected."; } >> $pipeline_log
-	exit 1
-fi
-printspace
-
-# Create reference genome dictionary and 
-# samtools index of genome for GATK tools
-# Depend start upon last job step
-dependency=$jobid
-dependency_prefix=$input_prefix
-input_sbatch=${scripts_dir}prep_ref.sbatch
-input_prefix=`get_prefix $input_sbatch`
-jobid=`pipeliner $dependency_prefix $dependency_size \
-$sleep_time $input_sbatch $input_prefix \
-$bams_dir $bams_dir \
-$genome`
-# Set dependency size for next step
-dependency_size=1
-printspace
-
-# Run GATK4 ValidateSamFile on HISAT2 alignmnet BAMs
-# Depend start upon last job step
-dependency=$jobid
-dependency_prefix=$input_prefix
-input_sbatch=${scripts_dir}validate_sams.sbatch
-input_prefix=`get_prefix $input_sbatch`
-pattern=.sorted.bam
-iteration=1
-input_prefix=${input_prefix}_${iteration}
-jobid=`pipeliner --array $array_size \
-$dependency_prefix $dependency_size \
-$sleep_time $input_sbatch $input_prefix \
-$bams_dir $qc_dir \
-$genome $samples_file $pattern`
-# Set dependency size for next step
-dependency_size=$array_size
-printspace
-
-# Run GATK4 CollectAlignmentSummaryMetrics 
-# on HISAT2 alignmnet BAMs
-# Depend start upon last job step
-dependency=$jobid
-dependency_prefix=$input_prefix
-input_sbatch=${scripts_dir}collect_alignment_summary_metrics.sbatch
-input_prefix=`get_prefix $input_sbatch`
-jobid=`pipeliner --array $array_size \
-$dependency_prefix $dependency_size \
-$sleep_time $input_sbatch $input_prefix \
-$bams_dir $qc_dir \
-$genome $samples_file`
-# Set dependency size for next step
-dependency_size=$array_size
-printspace
-
-# Run GATK4 CollectWgsMetrics on HISAT2 alignmnet BAMs
-# Depend start upon last job step
-dependency=$jobid
-dependency_prefix=$input_prefix
-input_sbatch=${scripts_dir}collect_wgs_metrics.sbatch
-input_prefix=`get_prefix $input_sbatch`
-jobid=`pipeliner --array $array_size \
-$dependency_prefix $dependency_size \
-$sleep_time $input_sbatch $input_prefix \
-$bams_dir $qc_dir \
-$genome $samples_file`
-
-# Run GATK4 MarkDuplicates
-# Depend start upon last job step
-dependency=$jobid
-dependency_prefix=$input_prefix
-input_sbatch=${scripts_dir}mark_dupes.sbatch
-input_prefix=`get_prefix $input_sbatch`
-jobid=`pipeliner --array $array_size \
-$dependency_prefix $dependency_size \
-$sleep_time $input_sbatch $input_prefix \
-$bams_dir $bams_dir \
-$genome $samples_file $qc_dir`
-# Set dependency size for next step
-dependency_size=$array_size
-printspace 
-
-# Run GATK4 ValidateSamFile on MarkDuplicate BAMs
-# Depend start upon last job step
-dependency=$jobid
-dependency_prefix=$input_prefix
-input_sbatch=${scripts_dir}validate_sams.sbatch
-input_prefix=`get_prefix $input_sbatch`
-pattern=.marked.sorted.bam
-iteration=2
-input_prefix=${input_prefix}_${iteration}
-jobid=`pipeliner --array $array_size \
-$dependency_prefix $dependency_size \
-$sleep_time $input_sbatch $input_prefix \
-$bams_dir $qc_dir \
-$genome $samples_file $pattern`
-# Set dependency size for next step
-dependency_size=$array_size
-printspace
-
-# Set new array size to number of individuals
-if [[ -f $indiv_file ]]
-then
-	num_indiv=`cat $indiv_file | wc -l`
-	array_size=$num_indiv
-	{ date; echo "Array size set to ${array_size}."; } >> $pipeline_log
-else
-	{ date; echo "Error - $indiv_file not detected."; } >> $pipeline_log
-	exit 1
-fi
-printspace
-
-# Collapse BAMs per sample into BAMs per individual with GATK4 MergeSamFiles
-# Depend start upon last job step
-dependency=$jobid
-dependency_prefix=$input_prefix
-input_sbatch=${scripts_dir}collapse_bams.sbatch
-input_prefix=`get_prefix $input_sbatch`
-jobid=`pipeliner --array $array_size \
-$dependency_prefix $dependency_size \
-$sleep_time $input_sbatch $input_prefix \
-$bams_dir $bams_dir \
-$genome $indiv_file`
-# Set dependency size for next step
-dependency_size=$array_size
-printspace
-
-# Run GATK4 ValidateSamFile on MarkDuplicate BAMs
-# Depend start upon last job step
-dependency=$jobid
-dependency_prefix=$input_prefix
-input_sbatch=${scripts_dir}validate_sams.sbatch
-input_prefix=`get_prefix $input_sbatch`
-pattern=.merged.marked.sorted.bam
-iteration=3
-input_prefix=${input_prefix}_${iteration}
-jobid=`pipeliner --array $array_size \
-$dependency_prefix $dependency_size \
-$sleep_time $input_sbatch $input_prefix \
-$bams_dir $qc_dir \
-$genome $indiv_file $pattern`
-# Set dependency size for next step
-dependency_size=$array_size
-printspace
-
-# Index collapsed BAMs for GATK4 HaplotypeCaller
-# Depend start upon last job step
-dependency=$jobid
-dependency_prefix=$input_prefix
-input_sbatch=${scripts_dir}index_bams.sbatch
-input_prefix=`get_prefix $input_sbatch`
-jobid=`pipeliner --array $array_size \
-$dependency_prefix $dependency_size \
-$sleep_time $input_sbatch $input_prefix \
-$bams_dir $bams_dir \
-$genome $indiv_file`
-# Set dependency size for next step
-dependency_size=$array_size
-printspace
-
-# Run GATK4 HaplotypeCaller
-# Depend start upon last job step
-dependency=$jobid
-dependency_prefix=$input_prefix
-input_sbatch=${scripts_dir}haplotype_caller.sbatch
-input_prefix=`get_prefix $input_sbatch`
-jobid=`pipeliner --array $array_size \
-$dependency_prefix $dependency_size \
-$sleep_time $input_sbatch $input_prefix \
-$bams_dir $gvcfs_dir \
-$genome $indiv_file`
-# Set dependency size for next step
-dependency_size=$array_size
-printspace
-
-# Create file to index HaplotypeCaller gVCFs
-dependency_prefix=$input_prefix
-until [[ -d $gvcfs_dir ]] && \
-[[ `checkpoints_exist $dependency_prefix` = "true" ]] && [[ `ls \
-checkpoints/${dependency_prefix}*.checkpoint | wc -l` -eq $dependency_size ]]
-do
-	{ date; echo "Waiting for completion of $dependency_prefix step."; } \
->> $pipeline_log
-	sleep $sleep_time
-done
-num_gvcfs=`ls ${gvcfs_dir}/*g.vcf.gz | wc -l`
-if [[ $num_gvcfs -eq $array_size ]]
-then
-	{ date; echo "Creating $gvcf_list of $num_gvcfs files."; } >> \
-$pipeline_log
-	ls $gvcfs_dir/*g.vcf.gz > $gvcf_list
-	if [[ `cat $gvcf_list | wc -l` -ne $array_size ]]
-	then
-		{ date; echo "Error - incorrect number of files in $gvcf_list \
-(`cat $gvcf_list | wc -l`/${array_size}). Exiting..."; } >> \
-$pipeline_log
-		exit 1
-	fi
-else
-	{ date; echo "Error - incorrect number of files \
-(${num_gvcfs}/${array_size}) detected in ${gvcfs_dir}. $gvcf_list not created. \
-Exiting..."; } >> $pipeline_log
-	exit 1
-fi
-printspace
-
-# Run GATK4 ValidateVariants on HaplotypeCaller gVCFs
-# Depend start upon last job step
-dependency=$jobid
-dependency_prefix=$input_prefix
-input_sbatch=${scripts_dir}validate_variants.sbatch
-input_prefix=`get_prefix $input_sbatch`
-iteration=1
-input_prefix=${input_prefix}_${iteration}
-jobid=`pipeliner --array $array_size \
-$dependency_prefix $dependency_size \
-$sleep_time $input_sbatch $input_prefix \
-$gvcfs_dir $qc_dir \
-$genome $gvcf_list`
-# Set dependency size for next step
-dependency_size=$array_size
-printspace
-
-# Run GATK4 SplitIntervals on genome to produce interval 
-# lists in $split_intervals_dir for CombineGVCFs step
-# Depend start upon last job step
-dependency=$jobid
-dependency_prefix=$input_prefix
-input_sbatch=${scripts_dir}split_intervals.sbatch
-input_prefix=`get_prefix $input_sbatch`
-jobid=`pipeliner $dependency_prefix $dependency_size \
-$sleep_time $input_sbatch $input_prefix \
-$split_intervals_dir $split_intervals_dir \
-$genome $scatter`
-# Set dependency size for next step
-dependency_size=1
-printspace
-
-# Set array size to number of split interval lists created
-dependency_prefix=$input_prefix
-until [[ -d $split_intervals_dir ]] && \
-[[ `checkpoints_exist $dependency_prefix` = "true" ]] && \
-[[ `ls checkpoints/${dependency_prefix}*.checkpoint | wc -l` -eq \
-$dependency_size ]]
-do
-	{ date; echo "Waiting for completion of $dependency_prefix step."; } \
->> $pipeline_log
-	sleep $sleep_time
-done
-array_size=$(( `ls ${split_intervals_dir}/*list | wc -l` ))
-{ date; printf "Array size set to number of split interval lists ($array_size) 
-created by split_intervals step (not necessarily equal to scatter=${scatter} 
-because --subdivision-mode BALANCING_WITHOUT_INTERVAL_SUBDIVISION).\n"; } >> \
-$pipeline_log
-# Create file to index split intervals lists
-ls ${split_intervals_dir}/*list > $intervals_file
-printspace
-
-# Run GATK4 GenomicsDBImport
-# Depend start upon last job step
-dependency=$jobid
-dependency_prefix=$input_prefix
-input_sbatch=${scripts_dir}genomicsdbimport.sbatch
-input_prefix=`get_prefix $input_sbatch`
-jobid=`pipeliner --array $array_size \
-$dependency_prefix $dependency_size \
-$sleep_time $input_sbatch $input_prefix \
-$gvcfs_dir $genomicsdbimport_dir \
-$genome $intervals_file $gvcf_list`
-# Set dependency size for next step
-dependency_size=$array_size
-printspace
-
-# Run GATK4 GenotypeGVCFs
-# Depend start upon last job step
-dependency=$jobid
-dependency_prefix=$input_prefix
-input_sbatch=${scripts_dir}genotype_gvcfs.sbatch
-input_prefix=`get_prefix $input_sbatch`
-jobid=`pipeliner --array $array_size \
-$dependency_prefix $dependency_size \
-$sleep_time $input_sbatch $input_prefix \
-$genomicsdbimport_dir $vcfs_dir \
-$genome`
-# Set dependency size for next step
-dependency_size=$array_size
-printspace
-
-# Create list of GenotypeGVCFs VCFs
-dependency_prefix=$input_prefix
-until [[ -d $vcfs_dir ]] && \
-[[ `checkpoints_exist $dependency_prefix` = "true" ]] && [[ `ls \
-checkpoints/${dependency_prefix}*.checkpoint | wc -l` -eq $dependency_size ]]
-do
-	{ date; echo "Waiting for completion of $dependency_prefix step."; } \
->> $pipeline_log
-	sleep $sleep_time
-done
-num_vcfs=`ls ${vcfs_dir}/*${genome_base}.vcf.gz | wc -l`
-if [[ $num_vcfs -eq $array_size ]]
-then
-	{ date; echo "Creating $vcf_list of $num_vcfs files."; } >> \
-$pipeline_log
-	ls $vcfs_dir/*${genome_base}.vcf.gz > $vcf_list
-	if [[ `cat $vcf_list | wc -l` -ne $array_size ]]
-	then
-		{ date; echo "Error - incorrect number of files \
-(`cat $vcf_list | wc -l`/${array_size}) in ${vcf_list}. Exiting..."; } >> \
-$pipeline_log
-		exit 1
-	fi
-else
-	{ date; echo "Error - incorrect number of files \
-(${num_vcfs}/${array_size}) detected in ${vcfs_dir}. $vcf_list not created. \
-Exiting..."; } >> $pipeline_log
-	exit 1
-fi
-printspace
-
-# Run GATK4 SortVcf on GenotypeGVCFs VCFs
-# Depend start upon last job step
-dependency=$jobid
-dependency_prefix=$input_prefix
-input_sbatch=${scripts_dir}sort_vcf.sbatch
-input_prefix=`get_prefix $input_sbatch`
-jobid=`pipeliner --array $array_size \
-$dependency_prefix $dependency_size \
-$sleep_time $input_sbatch $input_prefix \
-$vcfs_dir $qc_dir \
-$genome $vcf_list`
-# Set dependency size for next step
-dependency_size=$array_size
-printspace
-
-# Overwrite index of VCF files with sorted index
-# Depend start upon last job step
-dependency_prefix=$input_prefix
-until [[ `checkpoints_exist $dependency_prefix` = "true" ]] && [[ `ls \
-checkpoints/${dependency_prefix}*.checkpoint | wc -l` -eq $dependency_size ]]
-do
-	{ date; echo "Waiting for completion of $dependency_prefix step."; } \
->> $pipeline_log
-	sleep $sleep_time
-done
-num_vcfs=`ls ${vcfs_dir}/*${genome_base}.sorted.vcf.gz | wc -l`                                      
-if [[ $num_vcfs -eq $array_size ]]                                              
-then
-	{ date; echo "Creating $vcf_list of $num_vcfs files."; } \
->> $pipeline_log
-	ls $vcfs_dir/*${genome_base}.sorted.vcf.gz > $vcf_list
-	if [[ `cat $vcf_list | wc -l` -ne $array_size ]]
-	then
-		{ date; echo "Error - incorrect number of files \
-(`cat $vcf_list | wc -l`/${array_size}) in ${vcf_list}. Exiting..."; } >> \
-$pipeline_log
-		exit 1
-	fi
-else
-	{ date; echo "Error - incorrect number of files \
-(${num_vcfs}/${array_size}) detected in ${vcfs_dir}. $vcf_list not updated. \
-Exiting..."; } >> $pipeline_log
-fi
-printspace
-
-# Run GATK4 ValidateVariants on GenotypeGVCFs VCFs
-# Depend start upon last job step
-dependency=$jobid
-dependency_prefix=$input_prefix
-input_sbatch=${scripts_dir}validate_variants.sbatch
-input_prefix=`get_prefix $input_sbatch`
-iteration=2
-input_prefix=${input_prefix}_${iteration}
-jobid=`pipeliner --array $array_size \
-$dependency_prefix $dependency_size \
-$sleep_time $input_sbatch $input_prefix \
-$vcfs_dir $qc_dir \
-$genome $vcf_list`
-# Set dependency size for next step
-dependency_size=$array_size
-printspace
-
-# Run GATK4 MergeVcfs
-# Depend start upon last job step
-dependency=$jobid
-dependency_prefix=$input_prefix
-input_sbatch=${scripts_dir}merge_vcfs.sbatch
-input_prefix=`get_prefix $input_sbatch`
-jobid=`pipeliner $dependency_prefix $dependency_size \
-$sleep_time $input_sbatch $input_prefix \
-$vcfs_dir $genome $vcf_list`
-# Set dependency size for next step
-dependency_size=1
-printspace
-
+## Repair FASTQs with BBMap repair.sh
+## Depend start upon last job step
+#dependency=$jobid
+#dependency_prefix=$input_prefix
+#input_sbatch=${scripts_dir}repair.sbatch
+#input_prefix=`get_prefix $input_sbatch`
+#jobid=`pipeliner --array $array_size \
+#$dependency_prefix $dependency_size \
+#$sleep_time $input_sbatch $input_prefix \
+#$samples_dir $samples_dir \
+#$samples_file`
+## Set dependency size for next step
+#dependency_size=$array_size
+#printspace
+#
+## Remove original renamed reads to conserve memory before next steps
+## Depend start upon last job step
+#dependency_prefix=$input_prefix
+#input_prefix=og_reads_deleted
+#if [[ `checkpoints_exist $dependency_prefix` = "true" ]] && \
+#[[ `ls checkpoints/${dependency_prefix}*.checkpoint | wc -l` -eq \
+#$dependency_size ]]
+#then
+#	if [[ `checkpoints_exist $input_prefix` = "true" ]]
+#	then
+#		{ date; echo "Original reads already removed. Skipping."; } >> \
+#$pipeline_log
+#	else	
+#		{ date; echo "Removing original renamed reads \
+#to conserve memory before next steps."; } >> $pipeline_log
+#		for sample_id in `cat $samples_file`
+#		do
+#			if \
+#[[ -f ${samples_dir}/${sample_id}_R1.fastq.gz ]] && \
+#[[ -f ${samples_dir}/${sample_id}_R2.fastq.gz ]] && \
+#[[ -f ${trimmed_dir}/${sample_id}_R1.repaired.fastq.gz ]] && \
+#[[ -f ${trimmed_dir}/${sample_id}_R2.repaired.fastq.gz ]]
+#			then
+#				rm ${samples_dir}/${sample_id}_R1.fastq.gz
+#				rm ${samples_dir}/${sample_id}_R2.fastq.gz
+#			else
+#				{ date; echo "Error - some reads missing for \
+#${sample_id}, and no checkpoint file detected for $input_prefix step."; } >> \
+#$pipeline_log
+#				exit 1
+#			fi
+#		done
+#		touch checkpoints/${input_prefix}.checkpoint
+#	fi
+#fi
+#printspace
+#
+## FastQC
+## Keep previous dependency
+#dependency=$jobid
+#dependency_prefix=$dependency_prefix
+#input_sbatch=${scripts_dir}fastqc.sbatch
+#input_prefix=`get_prefix $input_sbatch`
+## Check for dependency jobid
+#if [[ $dependency ]]
+#then
+#	{ date; echo "Running $input_prefix following completion of \
+#$dependency_prefix step (jobid ${dependency})."; } >> $pipeline_log
+#	jobid=`depend --array $array_size \
+#$input_sbatch $input_prefix $dependency \
+#$samples_dir $qc_dir \
+#$samples_file`
+#else
+#	# If dependency is finished running, verify its checkpoint
+#	jobid=`pipeliner --array $array_size \
+#$dependency_prefix $dependency_size \
+#$sleep_time $input_sbatch $input_prefix \
+#$samples_dir $qc_dir \
+#$samples_file`
+#fi
+## Set dependency size for next step
+#dependency_size=$array_size
+#printspace
+#
+## Quality and adapter trimming
+## Depend start upon last job step
+#dependency_prefix=$input_prefix
+#input_sbatch=${scripts_dir}trim_galore.sbatch
+#input_prefix=`get_prefix $input_sbatch`
+#jobid=`pipeliner --array $array_size \
+#$dependency_prefix $dependency_size \
+#$sleep_time $input_sbatch $input_prefix \
+#$samples_dir $qc_dir \
+#$samples_file $trimmed_dir`
+## Set dependency size for next step
+#dependency_size=$array_size
+#printspace
+#
+## Run HISAT2-build on genome
+## Depend start upon last job step
+#dependency_prefix=$input_prefix
+#input_sbatch=${scripts_dir}build_hisat2.sbatch
+#input_prefix=`get_prefix $input_sbatch`
+#jobid=`pipeliner \
+#$dependency_prefix $dependency_size \
+#$sleep_time $input_sbatch $input_prefix \
+#$bams_dir $bams_dir \
+#$genome`
+#dependency_size=1
+#printspace
+#
+## Redefine $genome location after HISAT2-build step
+#if [[ -f ${bams_dir}/${genome_basename_unzip} ]]
+#then
+#	genome=${bams_dir}/${genome_basename_unzip}
+#	{ date; echo "Genome now being sourced from: $genome"; } >> \
+#$pipeline_log
+#else
+#	{ date; echo "Error - gunzipped genome not detected in ${bams_dir}."; \
+#} >> $pipeline_log
+#	exit 1
+#fi
+#printspace
+#
+## Run HISAT2 on all samples
+## Depend start upon last job step
+#dependency=$jobid
+#dependency_prefix=$input_prefix
+#input_sbatch=${scripts_dir}hisat2.sbatch
+#input_prefix=`get_prefix $input_sbatch`
+#jobid=`pipeliner --array $array_size \
+#$dependency_prefix $dependency_size \
+#$sleep_time $input_sbatch $input_prefix \
+#$trimmed_dir $bams_dir \
+#$genome $samples_file $qc_dir $indiv_file`
+#dependency_size=$array_size
+## Set dependency size for next step
+#dependency_size=$array_size
+#printspace
+#
+## Sort IDs in $indiv_file for unique invidual IDs
+#dependency_prefix=$input_prefix
+#until [[ -f $indiv_file ]] && \
+#[[ `checkpoints_exist $dependency_prefix` = "true" ]] && [[ `ls \
+#checkpoints/${dependency_prefix}*.checkpoint | wc -l` -eq $dependency_size ]]
+#do
+#	{ date; echo "Waiting for completion of \
+#$dependency_prefix step."; } >> $pipeline_log
+#	sleep $sleep_time
+#done
+#if [[ -f $indiv_file ]]
+#then
+#	{ date; echo "Sorting $indiv_file for unique invidual IDs."; } >> \
+#$pipeline_log
+#	sort -u $indiv_file > ${indiv_file}_sorted
+#	mv ${indiv_file}_sorted $indiv_file
+#else
+#	{ date; echo "Error - $indiv_file not detected."; } >> $pipeline_log
+#	exit 1
+#fi
+#printspace
+#
+## Create reference genome dictionary and 
+## samtools index of genome for GATK tools
+## Depend start upon last job step
+#dependency=$jobid
+#dependency_prefix=$input_prefix
+#input_sbatch=${scripts_dir}prep_ref.sbatch
+#input_prefix=`get_prefix $input_sbatch`
+#jobid=`pipeliner $dependency_prefix $dependency_size \
+#$sleep_time $input_sbatch $input_prefix \
+#$bams_dir $bams_dir \
+#$genome`
+## Set dependency size for next step
+#dependency_size=1
+#printspace
+#
+## Run GATK4 ValidateSamFile on HISAT2 alignmnet BAMs
+## Depend start upon last job step
+#dependency=$jobid
+#dependency_prefix=$input_prefix
+#input_sbatch=${scripts_dir}validate_sams.sbatch
+#input_prefix=`get_prefix $input_sbatch`
+#pattern=.sorted.bam
+#iteration=1
+#input_prefix=${input_prefix}_${iteration}
+#jobid=`pipeliner --array $array_size \
+#$dependency_prefix $dependency_size \
+#$sleep_time $input_sbatch $input_prefix \
+#$bams_dir $qc_dir \
+#$genome $samples_file $pattern`
+## Set dependency size for next step
+#dependency_size=$array_size
+#printspace
+#
+## Run GATK4 CollectAlignmentSummaryMetrics 
+## on HISAT2 alignmnet BAMs
+## Depend start upon last job step
+#dependency=$jobid
+#dependency_prefix=$input_prefix
+#input_sbatch=${scripts_dir}collect_alignment_summary_metrics.sbatch
+#input_prefix=`get_prefix $input_sbatch`
+#jobid=`pipeliner --array $array_size \
+#$dependency_prefix $dependency_size \
+#$sleep_time $input_sbatch $input_prefix \
+#$bams_dir $qc_dir \
+#$genome $samples_file`
+## Set dependency size for next step
+#dependency_size=$array_size
+#printspace
+#
+## Run GATK4 CollectWgsMetrics on HISAT2 alignmnet BAMs
+## Depend start upon last job step
+#dependency=$jobid
+#dependency_prefix=$input_prefix
+#input_sbatch=${scripts_dir}collect_wgs_metrics.sbatch
+#input_prefix=`get_prefix $input_sbatch`
+#jobid=`pipeliner --array $array_size \
+#$dependency_prefix $dependency_size \
+#$sleep_time $input_sbatch $input_prefix \
+#$bams_dir $qc_dir \
+#$genome $samples_file`
+#
+## Run GATK4 MarkDuplicates
+## Depend start upon last job step
+#dependency=$jobid
+#dependency_prefix=$input_prefix
+#input_sbatch=${scripts_dir}mark_dupes.sbatch
+#input_prefix=`get_prefix $input_sbatch`
+#jobid=`pipeliner --array $array_size \
+#$dependency_prefix $dependency_size \
+#$sleep_time $input_sbatch $input_prefix \
+#$bams_dir $bams_dir \
+#$genome $samples_file $qc_dir`
+## Set dependency size for next step
+#dependency_size=$array_size
+#printspace 
+#
+## Run GATK4 ValidateSamFile on MarkDuplicate BAMs
+## Depend start upon last job step
+#dependency=$jobid
+#dependency_prefix=$input_prefix
+#input_sbatch=${scripts_dir}validate_sams.sbatch
+#input_prefix=`get_prefix $input_sbatch`
+#pattern=.marked.sorted.bam
+#iteration=2
+#input_prefix=${input_prefix}_${iteration}
+#jobid=`pipeliner --array $array_size \
+#$dependency_prefix $dependency_size \
+#$sleep_time $input_sbatch $input_prefix \
+#$bams_dir $qc_dir \
+#$genome $samples_file $pattern`
+## Set dependency size for next step
+#dependency_size=$array_size
+#printspace
+#
+## Set new array size to number of individuals
+#if [[ -f $indiv_file ]]
+#then
+#	num_indiv=`cat $indiv_file | wc -l`
+#	array_size=$num_indiv
+#	{ date; echo "Array size set to ${array_size}."; } >> $pipeline_log
+#else
+#	{ date; echo "Error - $indiv_file not detected."; } >> $pipeline_log
+#	exit 1
+#fi
+#printspace
+#
+## Collapse BAMs per sample into BAMs per individual with GATK4 MergeSamFiles
+## Depend start upon last job step
+#dependency=$jobid
+#dependency_prefix=$input_prefix
+#input_sbatch=${scripts_dir}collapse_bams.sbatch
+#input_prefix=`get_prefix $input_sbatch`
+#jobid=`pipeliner --array $array_size \
+#$dependency_prefix $dependency_size \
+#$sleep_time $input_sbatch $input_prefix \
+#$bams_dir $bams_dir \
+#$genome $indiv_file`
+## Set dependency size for next step
+#dependency_size=$array_size
+#printspace
+#
+## Run GATK4 ValidateSamFile on MarkDuplicate BAMs
+## Depend start upon last job step
+#dependency=$jobid
+#dependency_prefix=$input_prefix
+#input_sbatch=${scripts_dir}validate_sams.sbatch
+#input_prefix=`get_prefix $input_sbatch`
+#pattern=.merged.marked.sorted.bam
+#iteration=3
+#input_prefix=${input_prefix}_${iteration}
+#jobid=`pipeliner --array $array_size \
+#$dependency_prefix $dependency_size \
+#$sleep_time $input_sbatch $input_prefix \
+#$bams_dir $qc_dir \
+#$genome $indiv_file $pattern`
+## Set dependency size for next step
+#dependency_size=$array_size
+#printspace
+#
+## Index collapsed BAMs for GATK4 HaplotypeCaller
+## Depend start upon last job step
+#dependency=$jobid
+#dependency_prefix=$input_prefix
+#input_sbatch=${scripts_dir}index_bams.sbatch
+#input_prefix=`get_prefix $input_sbatch`
+#jobid=`pipeliner --array $array_size \
+#$dependency_prefix $dependency_size \
+#$sleep_time $input_sbatch $input_prefix \
+#$bams_dir $bams_dir \
+#$genome $indiv_file`
+## Set dependency size for next step
+#dependency_size=$array_size
+#printspace
+#
+## Run GATK4 HaplotypeCaller
+## Depend start upon last job step
+#dependency=$jobid
+#dependency_prefix=$input_prefix
+#input_sbatch=${scripts_dir}haplotype_caller.sbatch
+#input_prefix=`get_prefix $input_sbatch`
+#jobid=`pipeliner --array $array_size \
+#$dependency_prefix $dependency_size \
+#$sleep_time $input_sbatch $input_prefix \
+#$bams_dir $gvcfs_dir \
+#$genome $indiv_file`
+## Set dependency size for next step
+#dependency_size=$array_size
+#printspace
+#
+## Create file to index HaplotypeCaller gVCFs
+#dependency_prefix=$input_prefix
+#until [[ -d $gvcfs_dir ]] && \
+#[[ `checkpoints_exist $dependency_prefix` = "true" ]] && [[ `ls \
+#checkpoints/${dependency_prefix}*.checkpoint | wc -l` -eq $dependency_size ]]
+#do
+#	{ date; echo "Waiting for completion of $dependency_prefix step."; } \
+#>> $pipeline_log
+#	sleep $sleep_time
+#done
+#num_gvcfs=`ls ${gvcfs_dir}/*g.vcf.gz | wc -l`
+#if [[ $num_gvcfs -eq $array_size ]]
+#then
+#	{ date; echo "Creating $gvcf_list of $num_gvcfs files."; } >> \
+#$pipeline_log
+#	ls $gvcfs_dir/*g.vcf.gz > $gvcf_list
+#	if [[ `cat $gvcf_list | wc -l` -ne $array_size ]]
+#	then
+#		{ date; echo "Error - incorrect number of files in $gvcf_list \
+#(`cat $gvcf_list | wc -l`/${array_size}). Exiting..."; } >> \
+#$pipeline_log
+#		exit 1
+#	fi
+#else
+#	{ date; echo "Error - incorrect number of files \
+#(${num_gvcfs}/${array_size}) detected in ${gvcfs_dir}. $gvcf_list not created. \
+#Exiting..."; } >> $pipeline_log
+#	exit 1
+#fi
+#printspace
+#
+## Run GATK4 ValidateVariants on HaplotypeCaller gVCFs
+## Depend start upon last job step
+#dependency=$jobid
+#dependency_prefix=$input_prefix
+#input_sbatch=${scripts_dir}validate_variants.sbatch
+#input_prefix=`get_prefix $input_sbatch`
+#iteration=1
+#input_prefix=${input_prefix}_${iteration}
+#jobid=`pipeliner --array $array_size \
+#$dependency_prefix $dependency_size \
+#$sleep_time $input_sbatch $input_prefix \
+#$gvcfs_dir $qc_dir \
+#$genome $gvcf_list`
+## Set dependency size for next step
+#dependency_size=$array_size
+#printspace
+#
+## Run GATK4 SplitIntervals on genome to produce interval 
+## lists in $split_intervals_dir for CombineGVCFs step
+## Depend start upon last job step
+#dependency=$jobid
+#dependency_prefix=$input_prefix
+#input_sbatch=${scripts_dir}split_intervals.sbatch
+#input_prefix=`get_prefix $input_sbatch`
+#jobid=`pipeliner $dependency_prefix $dependency_size \
+#$sleep_time $input_sbatch $input_prefix \
+#$split_intervals_dir $split_intervals_dir \
+#$genome $scatter`
+## Set dependency size for next step
+#dependency_size=1
+#printspace
+#
+## Set array size to number of split interval lists created
+#dependency_prefix=$input_prefix
+#until [[ -d $split_intervals_dir ]] && \
+#[[ `checkpoints_exist $dependency_prefix` = "true" ]] && \
+#[[ `ls checkpoints/${dependency_prefix}*.checkpoint | wc -l` -eq \
+#$dependency_size ]]
+#do
+#	{ date; echo "Waiting for completion of $dependency_prefix step."; } \
+#>> $pipeline_log
+#	sleep $sleep_time
+#done
+#array_size=$(( `ls ${split_intervals_dir}/*list | wc -l` ))
+#{ date; printf "Array size set to number of split interval lists ($array_size) 
+#created by split_intervals step (not necessarily equal to scatter=${scatter} 
+#because --subdivision-mode BALANCING_WITHOUT_INTERVAL_SUBDIVISION).\n"; } >> \
+#$pipeline_log
+## Create file to index split intervals lists
+#ls ${split_intervals_dir}/*list > $intervals_file
+#printspace
+#
+## Run GATK4 GenomicsDBImport
+## Depend start upon last job step
+#dependency=$jobid
+#dependency_prefix=$input_prefix
+#input_sbatch=${scripts_dir}genomicsdbimport.sbatch
+#input_prefix=`get_prefix $input_sbatch`
+#jobid=`pipeliner --array $array_size \
+#$dependency_prefix $dependency_size \
+#$sleep_time $input_sbatch $input_prefix \
+#$gvcfs_dir $genomicsdbimport_dir \
+#$genome $intervals_file $gvcf_list`
+## Set dependency size for next step
+#dependency_size=$array_size
+#printspace
+#
+## Run GATK4 GenotypeGVCFs
+## Depend start upon last job step
+#dependency=$jobid
+#dependency_prefix=$input_prefix
+#input_sbatch=${scripts_dir}genotype_gvcfs.sbatch
+#input_prefix=`get_prefix $input_sbatch`
+#jobid=`pipeliner --array $array_size \
+#$dependency_prefix $dependency_size \
+#$sleep_time $input_sbatch $input_prefix \
+#$genomicsdbimport_dir $vcfs_dir \
+#$genome`
+## Set dependency size for next step
+#dependency_size=$array_size
+#printspace
+#
+## Create list of GenotypeGVCFs VCFs
+#dependency_prefix=$input_prefix
+#until [[ -d $vcfs_dir ]] && \
+#[[ `checkpoints_exist $dependency_prefix` = "true" ]] && [[ `ls \
+#checkpoints/${dependency_prefix}*.checkpoint | wc -l` -eq $dependency_size ]]
+#do
+#	{ date; echo "Waiting for completion of $dependency_prefix step."; } \
+#>> $pipeline_log
+#	sleep $sleep_time
+#done
+#num_vcfs=`ls ${vcfs_dir}/*${genome_base}.vcf.gz | wc -l`
+#if [[ $num_vcfs -eq $array_size ]]
+#then
+#	{ date; echo "Creating $vcf_list of $num_vcfs files."; } >> \
+#$pipeline_log
+#	ls $vcfs_dir/*${genome_base}.vcf.gz > $vcf_list
+#	if [[ `cat $vcf_list | wc -l` -ne $array_size ]]
+#	then
+#		{ date; echo "Error - incorrect number of files \
+#(`cat $vcf_list | wc -l`/${array_size}) in ${vcf_list}. Exiting..."; } >> \
+#$pipeline_log
+#		exit 1
+#	fi
+#else
+#	{ date; echo "Error - incorrect number of files \
+#(${num_vcfs}/${array_size}) detected in ${vcfs_dir}. $vcf_list not created. \
+#Exiting..."; } >> $pipeline_log
+#	exit 1
+#fi
+#printspace
+#
+## Run GATK4 SortVcf on GenotypeGVCFs VCFs
+## Depend start upon last job step
+#dependency=$jobid
+#dependency_prefix=$input_prefix
+#input_sbatch=${scripts_dir}sort_vcf.sbatch
+#input_prefix=`get_prefix $input_sbatch`
+#jobid=`pipeliner --array $array_size \
+#$dependency_prefix $dependency_size \
+#$sleep_time $input_sbatch $input_prefix \
+#$vcfs_dir $qc_dir \
+#$genome $vcf_list`
+## Set dependency size for next step
+#dependency_size=$array_size
+#printspace
+#
+## Overwrite index of VCF files with sorted index
+## Depend start upon last job step
+#dependency_prefix=$input_prefix
+#until [[ `checkpoints_exist $dependency_prefix` = "true" ]] && [[ `ls \
+#checkpoints/${dependency_prefix}*.checkpoint | wc -l` -eq $dependency_size ]]
+#do
+#	{ date; echo "Waiting for completion of $dependency_prefix step."; } \
+#>> $pipeline_log
+#	sleep $sleep_time
+#done
+#num_vcfs=`ls ${vcfs_dir}/*${genome_base}.sorted.vcf.gz | wc -l`                                      
+#if [[ $num_vcfs -eq $array_size ]]                                              
+#then
+#	{ date; echo "Creating $vcf_list of $num_vcfs files."; } \
+#>> $pipeline_log
+#	ls $vcfs_dir/*${genome_base}.sorted.vcf.gz > $vcf_list
+#	if [[ `cat $vcf_list | wc -l` -ne $array_size ]]
+#	then
+#		{ date; echo "Error - incorrect number of files \
+#(`cat $vcf_list | wc -l`/${array_size}) in ${vcf_list}. Exiting..."; } >> \
+#$pipeline_log
+#		exit 1
+#	fi
+#else
+#	{ date; echo "Error - incorrect number of files \
+#(${num_vcfs}/${array_size}) detected in ${vcfs_dir}. $vcf_list not updated. \
+#Exiting..."; } >> $pipeline_log
+#fi
+#printspace
+#
+## Run GATK4 ValidateVariants on GenotypeGVCFs VCFs
+## Depend start upon last job step
+#dependency=$jobid
+#dependency_prefix=$input_prefix
+#input_sbatch=${scripts_dir}validate_variants.sbatch
+#input_prefix=`get_prefix $input_sbatch`
+#iteration=2
+#input_prefix=${input_prefix}_${iteration}
+#jobid=`pipeliner --array $array_size \
+#$dependency_prefix $dependency_size \
+#$sleep_time $input_sbatch $input_prefix \
+#$vcfs_dir $qc_dir \
+#$genome $vcf_list`
+## Set dependency size for next step
+#dependency_size=$array_size
+#printspace
+#
+## Run GATK4 MergeVcfs
+## Depend start upon last job step
+#dependency=$jobid
+#dependency_prefix=$input_prefix
+#input_sbatch=${scripts_dir}merge_vcfs.sbatch
+#input_prefix=`get_prefix $input_sbatch`
+#jobid=`pipeliner $dependency_prefix $dependency_size \
+#$sleep_time $input_sbatch $input_prefix \
+#$vcfs_dir $genome $vcf_list`
+## Set dependency size for next step
+#dependency_size=1
+#printspace
+#
 ## Run MultiQC on pipeline QC outputs
 ## Depend start upon last job step
 #dependency=$jobid
