@@ -1,4 +1,6 @@
+## wget me out of here:
 ## Index files in https-based website for faster downloading
+
 # Required variables in conf file:
 #links=
 #user=
