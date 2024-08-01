@@ -63,7 +63,7 @@ shift_coords="${base_mum}_shift.coords"
 sed -z "s/Rev.*//g" $mums_file | grep -v ">" | sort -n | head -n1 > "$shift_coords"
 r_pos="$(awk '{print $1}' $shift_coords)"
 q_pos="$(awk '{print $2}' $shift_coords)"
-shift_pos="$(( q_pos - r_pos ))"
+shift_pos="$(( q_pos - r_pos + 1 ))"
 if (( shift_pos > 0 ))
 then
   echo "Shifting $query by $shift_pos bases"
