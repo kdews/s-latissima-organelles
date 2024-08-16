@@ -18,5 +18,5 @@ sbatch s-latissima-organelles/mummer.sbatch NC_026108.1_sugar_kelp_mito.fasta pu
 sbatch s-latissima-organelles/mummer.sbatch MT151382.1_Saccharina_latissima_strain_ye-c14_chloroplast_complete_genome.fasta putative_sugar_kelp_chloro.fasta
 ```
 
-[alt text](mummer_dotplot_chloroplast.png)
-[alt text](mummer_dotplot_mitochondrion.png)
+![alt text](mummer_dotplot_chloroplast.png)
+![alt text](mummer_dotplot_mitochondrion.png)
