@@ -14,7 +14,7 @@ if (require(showtext, quietly = T)) {
 if (interactive()) {
   setwd("/project/noujdine_61/kdeweese/latissima/organelles")
   mums_file <-
-    "NC_026108.1_sugar_kelp_mito_vs_putative_sugar_kelp_mito_flye_444_revcomp_shift_27818.mums"
+    "MT151382.1_Saccharina_latissima_strain_ye-c14_chloroplast_complete_genome_vs_putative_sugar_kelp_chloro_revcomp_shift_94650.mums"
   outdir <- "/home1/kdeweese/scripts/s-latissima-organelles/"
 } else if (length(commandArgs(trailingOnly = T)) == 2) {
   line_args <- commandArgs(trailingOnly = T)
@@ -55,9 +55,10 @@ mums <- read.table(
 )
 mums <- mums %>%
   mutate(
-    Strand = if_else(row_number() <= rev_row, "+", "–"),
-    Length = case_when(Strand == "–" ~ Length * -1,
-                       .default = Length)
+    Strand = if_else(row_number() <= rev_row, "+", "-"),
+    Strand = factor(Strand, levels = c("+", "-")),
+    Our_end = case_when(Strand == "-" ~ Our-Length,
+                         .default = Our+Length)
   )
 x_lab <-
   paste("Reference",
@@ -66,31 +67,31 @@ x_lab <-
         "assembly (kb)")
 y_lab <-
   paste(2024, names(mums_file), "assembly (kb)")
-ggplot(mums,
-       aes(
-         x = Reference,
-         xend = Reference + Length,
-         y = Our,
-         yend = Our + Length,
-         color = Strand
-       )) +
-  geom_point(size = 2) +
-  # geom_segment(size = 2, lineend = "round") +
+p <- ggplot(mums,
+            aes(
+              x = Reference,
+              xend = Reference + Length,
+              y = Our,
+              yend = Our_end,
+              color = Strand
+            )) +
+  geom_segment(linewidth = 2, lineend = "round") +
   scale_x_continuous(labels = scales::label_number(scale = 1e-3),
-                     n.breaks = 10) +
+                     n.breaks = 10, expand = c(0.01, 0)) +
   scale_y_continuous(labels = scales::label_number(scale = 1e-3),
-                     n.breaks = 10) +
-  scale_color_discrete(type = c("orange", "blue")) +
+                     n.breaks = 10, expand = c(0.01, 0)) +
+  scale_color_discrete(type = c("+"="blue", "-"="orange")) +
   theme_bw() +
   theme(
     legend.position = "inside",
-    legend.position.inside = c(0.95, 0.15),
-    legend.text = element_text(size = rel(1)),
+    legend.position.inside = c(0.9, 0.1),
+    legend.text = element_text(size = rel(1.2)),
     legend.key = element_blank(),
     legend.background = element_rect(color = "grey")
   ) +
   xlab(x_lab) +
-  ylab(y_lab)
+  ylab(y_lab) +
+  coord_cartesian(clip = "off")
 # Save plot
 print(paste("MUMmer dotplot saved to:", mum_dotplot_file))
 ggsave(filename = mum_dotplot_file, plot = p, bg = "white")
