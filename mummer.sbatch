@@ -4,6 +4,11 @@
 #SBATCH --time=00:10:00
 #SBATCH -o %x_%j.log
 
+init="/home1/kdeweese/scripts/s-latissima-genome/script_init.sh"
+if [[ -a "$init" ]]; then source "$init"; else { echo "Init err"; exit 1; }; fi
+
+# Input and output variables
+r_script="${scripts_dir}${job_name}.R"
 ref="$1"
 query="$2"
 r_base="$(basename "${ref%.*}")"
@@ -11,16 +16,6 @@ q_base="$(basename "${query%.*}")"
 q_ext="$(basename "${query##*.}")"
 base_mum="${r_base}_vs_${q_base}"
 mums_file="${base_mum}.mums"
-
-# Activate conda
-cond=~/.conda_for_sbatch.sh
-if [[ -a "$cond" ]]
-then
-  source "$cond"
-else
-  echo "Error on source of $cond"
-  exit 1
-fi
 
 # Create mums alignment
 conda activate mummer
@@ -32,7 +27,7 @@ conda deactivate
 
 # Check if there are more reverse hits than forward hits
 n_tot="$(cat "$mums_file" | wc -l)"
-n_fwd="$(grep -n "^>.*Reverse" $mums_file | awk -F ':' '{print $1}')"
+n_fwd="$(grep -n "^>.*Reverse" "$mums_file" | awk -F ':' '{print $1}')"
 n_rev="$(( n_tot - n_fwd ))"
 if (( n_rev > n_fwd ))
 then
@@ -60,9 +55,9 @@ fi
 
 # Shift query FASTA to line up with reference (if needed)
 shift_coords="${base_mum}_shift.coords"
-sed -z "s/Rev.*//g" $mums_file | grep -v ">" | sort -n | head -n1 > "$shift_coords"
-r_pos="$(awk '{print $1}' $shift_coords)"
-q_pos="$(awk '{print $2}' $shift_coords)"
+sed -z "s/Rev.*//g" "$mums_file" | grep -v ">" | sort -n | head -n1 > "$shift_coords"
+r_pos="$(awk '{print $1}' "$shift_coords")"
+q_pos="$(awk '{print $2}' "$shift_coords")"
 shift_pos="$(( q_pos - r_pos + 1 ))"
 if (( shift_pos > 0 ))
 then
@@ -86,9 +81,11 @@ fi
 
 # Plot fixed mums
 module purge
-module load gcc/11.3.0 gnuplot/5.4.3
-conda activate mummer
-cmd="mummerplot --png --prefix=$base_mum $mums_file"
-# cmd="mummerplot --postscript --prefix=$base_mum ${base_mum}.mums"
+$load_R_mods
+cmd="Rscript $r_script $mums_file $scripts_dir"
+# module load gcc/11.3.0 gnuplot/5.4.3
+# conda activate mummer
+# cmd="mummerplot --png --prefix=$base_mum $mums_file"
 echo "$cmd"
 $cmd
+
