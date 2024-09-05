@@ -1,8 +1,8 @@
 #!/bin/bash
-#SBATCH -J mummer
+#SBATCH -J mummer_organelles
 #SBATCH --mem=1g
 #SBATCH --time=00:10:00
-#SBATCH -o %x_%j.log
+#SBATCH -o %x.log
 
 init="/home1/kdeweese/scripts/s-latissima-organelles/script_init.sh"
 if [[ -a "$init" ]]; then source "$init"; else { echo "Init err"; exit 1; }; fi
@@ -116,5 +116,4 @@ cmd="Rscript $r_script ${mums_array[*]} $scripts_dir"
 # conda activate mummer
 # cmd="mummerplot --png --prefix=$base_mum $mums_file"
 echo "$cmd"
-# $cmd
-
+$cmd

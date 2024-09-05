@@ -6,6 +6,7 @@ fontconfig
 freetype
 zlib
 libpng
+libtiff
 cmake
 mvapich2
 netcdf-fortran
