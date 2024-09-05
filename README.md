@@ -16,4 +16,4 @@ Scripts to score and compare the organelle genome assemblies (chloroplast and mi
 sbatch s-latissima-organelles/mummer_organelles.sbatch s-latissima-organelles/organelles.txt
 ```
 
-![alt text](FS7_mummer_organelles_dotplot.tiff)
+![alt text](FS7_mummer_organelles_dotplot.png)

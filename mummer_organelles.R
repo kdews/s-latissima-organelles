@@ -30,7 +30,9 @@ if (interactive()) {
 }
 
 ## Output
-mum_dotplot_file <- "FS7_mummer_organelles_dotplot.tiff"
+extens <- c("png", "tiff")
+mum_dotplot_file <- "FS7_mummer_organelles_dotplot"
+mum_dotplot_file <- paste(mum_dotplot_file, extens, sep = ".")
 # Prepend output directory to plot filenames (if it exists)
 if (dir.exists(outdir)) {
   mum_dotplot_file <- paste0(outdir, mum_dotplot_file)
@@ -108,5 +110,6 @@ plist <- sapply(c(mums_file1, mums_file2), plotMums, simplify = F)
 p2 <- ggarrange(plotlist = plist, labels = "AUTO")
 # Save plots
 print(paste("MUMmer dotplot saved to:", mum_dotplot_file))
-ggsave(filename = mum_dotplot_file, plot = p2, bg = "white",
-       width = 10, height = 5)
+sapply(mum_dotplot_file, ggsave,
+       plot = p2, bg = "white", width = 10, height = 5,
+       simplify = F)
