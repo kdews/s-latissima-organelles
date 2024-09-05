@@ -109,5 +109,4 @@ p2 <- ggarrange(plotlist = plist, labels = "AUTO")
 # Save plots
 print(paste("MUMmer dotplot saved to:", mum_dotplot_file))
 ggsave(filename = mum_dotplot_file, plot = p2, bg = "white",
-       width = 14, height = 7)
-
+       width = 10, height = 5)
