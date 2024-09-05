@@ -13,15 +13,18 @@ if (require(showtext, quietly = T)) {
 ## Input
 if (interactive()) {
   setwd("/project/noujdine_61/kdeweese/latissima/organelles")
-  mums_file <-
+  mums_file1 <-
     "MT151382.1_Saccharina_latissima_strain_ye-c14_chloroplast_complete_genome_vs_putative_sugar_kelp_chloro_revcomp_shift_94650.mums"
+  mums_file2 <-
+    "NC_026108.1_sugar_kelp_mito_vs_putative_sugar_kelp_mito_flye_444_revcomp_shift_27818.mums"
   outdir <- "/home1/kdeweese/scripts/s-latissima-organelles/"
 } else if (length(commandArgs(trailingOnly = T)) == 2) {
   line_args <- commandArgs(trailingOnly = T)
-  mums_file <- line_args[1]
-  outdir <- line_args[2]
+  mums_file1 <- line_args[1]
+  mums_file2 <- line_args[2]
+  outdir <- line_args[3]
 } else {
-  stop("2 positional arguments expected.")
+  stop("3 positional arguments expected.")
 }
 organelles <- c("mitochondrion" = "mito", "chloroplast" = "chloro")
 assembly_refs <- c("mitochondrion" = "2020", "chloroplast" = "2017")
