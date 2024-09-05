@@ -7,8 +7,26 @@
 init="/home1/kdeweese/scripts/s-latissima-organelles/script_init.sh"
 if [[ -a "$init" ]]; then source "$init"; else { echo "Init err"; exit 1; }; fi
 
+# Rscript file
+r_script="${job_name}.R"
+
+# Help message
+if [[ $1 == "-h" ]] || [[ $1 == "--help" ]]
+then
+  echo "\
+Runs MUMmer on circular query and reference FASTAs, then modifies the query
+FASTA (e.g. shifts starting position, reverse complements) to optimize for
+comparison with dotplot.
+Usage: sbatch ${job_name}.sbatch <reference.fa> <query.fa>
+
+Requires:
+ - MUMmer4 (https://mummer4.github.io/)
+ - R (https://www.r-project.org)"
+  exit 0
+fi
+
 # Input and output variables
-r_script="${scripts_dir}${job_name}.R"
+r_script="${scripts_dir}${r_script}"
 ref="$1"
 query="$2"
 r_base="$(basename "${ref%.*}")"

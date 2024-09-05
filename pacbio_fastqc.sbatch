@@ -9,7 +9,7 @@
 indir=ccs # input directory
 outdir=fastqc # output directory
 samples_file=ccs_samples.txt # file containing sample names
-sample=${indir}/$(cat $samples_file | sed -n ${SLURM_ARRAY_TASK_ID}p)
+sample=${indir}/$(cat $samples_file | sed -n "${SLURM_ARRAY_TASK_ID}"p)
 
 # Create output directory (if needed)
 mkdir -p $outdir
@@ -26,7 +26,7 @@ fi
 
 # Run FASTQC
 echo "Running FASTQC on $sample"
-fastqc -t $SLURM_CPUS_PER_TASK -o $outdir $sample
+fastqc -t "$SLURM_CPUS_PER_TASK" -o $outdir "$sample"
 
 # Checkpoint
 if [[ $? -ne 0 ]]

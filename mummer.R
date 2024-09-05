@@ -31,7 +31,7 @@ mum_header <- c("Reference", "Our", "Length")
 # Get organelle type and assembly names from MUMs filename
 mums_file <- unlist(sapply(organelles, grep, mums_file, value = T))
 mum_dotplot_file <-
-  paste0("mummer_dotplot_", names(mums_file), ".png")
+  paste0("mummer_dotplot_", names(mums_file), ".tiff")
 # Prepend output directory to plot filenames (if it exists)
 if (dir.exists(outdir)) {
   mum_dotplot_file <- paste0(outdir, mum_dotplot_file)
