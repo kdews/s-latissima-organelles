@@ -92,11 +92,11 @@ plotMums <- function(mums_file) {
     scale_color_discrete(type = c("+"="blue", "-"="orange")) +
     theme_bw() +
     theme(
-      legend.position = "inside",
-      legend.position.inside = c(0.9, 0.1),
+      legend.position = "right",
       legend.text = element_text(size = rel(1.2)),
       legend.key = element_blank(),
-      legend.background = element_rect(color = "grey")
+      # legend.background = element_rect(color = "grey"),
+      plot.margin = margin(0.5, 0.5, 0.5, 0.5, "cm")
     ) +
     xlab(x_lab) +
     ylab(y_lab) +
@@ -107,7 +107,12 @@ plotMums <- function(mums_file) {
 ## Analysis
 # Generate and combines plots
 plist <- sapply(c(mums_file1, mums_file2), plotMums, simplify = F)
-p2 <- ggarrange(plotlist = plist, labels = "AUTO")
+p2 <- ggarrange(
+  plotlist = plist,
+  labels = "AUTO",
+  legend.grob = get_legend(plist[[1]]),
+  legend = "right"
+)
 # Save plots
 print(paste("MUMmer dotplot saved to:", mum_dotplot_file))
 sapply(mum_dotplot_file, ggsave,
